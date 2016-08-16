@@ -26,6 +26,7 @@
         <ul class="nav navbar-nav">
           <li><a href="#" data-bind="click: reloadAll">Load Secrets</a></li>
           <li><a href="#" data-bind="click: secretForm().setupNew" data-toggle="modal" data-target="#vaultAddModal">Add New Secret</a></li>
+          <li><a href="#" data-bind="click: logout">Logout</a></li>
         </ul>
         <ul class="nav navbar-nav navbar-right">
         <li class="dropdown">
@@ -40,20 +41,34 @@
     </div>
   </nav>
   <div class="container">
-    <form class="form-horizontal">
-      <div class="form-group">
-        <label for="endpoint" class="col-sm-2 control-label">Endpoint</label>
+    <form>
+      <div class="form-group row">
+        <label for="endpoint" class="col-sm-2 control-label col-form-label">Endpoint</label>
         <div class="col-sm-10">
           <input data-bind="value: endpoint" type="text" class="form-control" id="endpoint" placeholder="https://vault.example.com">
         </div>
-      </div>
-      <div class="form-group">
-        <label for="token" class="col-sm-2 control-label">Token</label>
+
+        <label for="auth" class="col-sm-2 control-label col-form-label">Authenticate with:</label>
         <div class="col-sm-10">
-          <input data-bind="value: token" type="password" class="form-control" id="token">
+          <select data-bind="options: authMethods,
+                             optionsText: 'name',
+                             value: selectedAuthType,
+                             optionsCaption: 'Select...'" class="form-control" id="auth" data-toggle="modal" data-target="#vaultAuthTokenModal">
+          </select>
         </div>
       </div>
+
+    <div class="form-group row" data-bind="visible: selectedAuthType">
+              <label for="client_token" class="col-sm-2 control-label col-form-label">Token</label>
+              <div class="col-sm-10">
+                <input data-bind="value: client_token" type="password" class="form-control" id="client_token">
+              </div>
+  
+    </div>
     </form>
+
+
+
     <table data-bind="if: secrets().length" class="table table-hover">
       <thead>
         <tr>
@@ -71,6 +86,19 @@
   </div>
 
   <!-- Modals -->
+  <div class="modal fade" id="vaultTokenAuthModal" tabindex="-1" role="dialog" aria-labelledby="vaultTokenAuthModalLabel">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title" id="vaultHealthLabel">Vault Token Authentication</h4>
+        </div>
+        <div class="modal-body">
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="vaultHealthModal" tabindex="-1" role="dialog" aria-labelledby="vaultHealthLabel">
     <div class="modal-dialog" role="document">
       <div class="modal-content">

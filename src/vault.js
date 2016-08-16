@@ -112,11 +112,62 @@ var SecretForm = function() {
   self.setupNew();
 }
 
-var Page = function() {
+var authMethodConfig = {
+  'github-default': {
+    'type': 'github',
+    'mount': 'github/'
+  },
+  'userpass-default': {
+    'type': 'userpass',
+    'mount': 'userpass/'
+  },
+
+}
+
+var supportedAuthMethods = {
+    'token': { 'desc': "Token authentication", 'data': { 'token': "" } },
+    'github': { 'desc': "GitHub authentication", 'data': { 'token': "" } },
+    'app-id': { 'desc': "App ID authentication", 'data': { 'app_id': "", 'user_id': "" } },
+    'ldap': { 'desc': "LDAP authentication", 'data': { 'username': "", 'password': "", 'passcode': "" } },
+    'userpass': { 'desc': "Username/password authentication", 'data': { 'username': "", 'password': "", 'passcode': "" } }
+}
+
+var authMethod = function(name, type, path, desc, data) {
   var self = this;
 
+  self.name = name;
+  self.type = type;
+  self.path = path;
+  self.desc = desc;
+  self.data = data;
+}
+
+var availableAuthMethods = function(){
+    var authArray = [];
+    var authToken = supportedAuthMethods['token'];
+    authArray.push(new authMethod('token', 'token', '', authToken.desc, authToken.data));
+    for (name in authMethodConfig) {
+      var auth = authMethodConfig[name];
+      var type = auth.type;
+      var data = supportedAuthMethods[type].data;
+      var path = auth.mount;
+      var desc = supportedAuthMethods[type].desc;
+      authArray.push(new authMethod(name, type, path, desc, data))
+    }
+    return authArray;
+}
+
+var Page = function() {
+  var self = this;
+  var authMethods = new availableAuthMethods();
+
   self.endpoint = ko.observable(localStorage.vaultEndpoint);
+  self.client_token = ko.observable();
+  self.client_id = ko.observable();
+  self.client_otp = ko.observable();
   self.token = ko.observable(localStorage.vaultToken);
+  self.authMethods = ko.observableArray(authMethods);
+  self.selectedAuthType = ko.observable(authMethods[0]);
   self.secrets = ko.observableArray();
   self.secretForm = ko.observable(new SecretForm());
   self.vaultHealthResponse = ko.observable();
@@ -127,7 +178,7 @@ var Page = function() {
   });
 
   self.token.subscribe(function (text) {
-    localStorage.vaultTokenResponse = text;
+    localStorage.vaultToken = text;
   });
 
   self.sortByPath = function(left, right) {
@@ -136,7 +187,17 @@ var Page = function() {
 
   self.reloadAll = function() {
     self.secrets([]);
+    console.log(self.client_token());
+    if (self.selectedAuthType().type != 'token') {
+      self.getClientToken(self.selectedAuthType(), self.client_token());
+    } else {
+      self.token(self.client_token());
+    }
     self.apiList('secret/');
+  }
+
+  self.logout = function() {
+    self.secrets([]);
   }
 
   self.getHeaders = function() {
@@ -160,6 +221,27 @@ var Page = function() {
       error: onError
     });
   }
+
+  self.getClientToken = function(auth, token) {
+    var path = "auth/" + auth.path + 'login';
+    console.log(auth);
+    console.log(auth.data);
+    if (auth.data.username) {
+      path += '/' + auth.data.username;
+    } 
+    if (auth.data.app_id) {
+      path += '/' + auth.data.app_id;
+    }
+    console.log(path);
+    $.ajax({
+      url: self.getUrl(path),
+      method: 'POST',
+      data: toJson({ "token": token }),
+      success: self.apiClientTokenSuccess,
+      error: onError
+    });
+  }
+
 
   self.apiToken = function() {
     $.ajax({
@@ -215,7 +297,12 @@ var Page = function() {
   }
 
   self.apiTokenSuccess = function(data) {
+    console.log(data);
     self.vaultTokenResponse(toJson(data.data));
+  }
+
+  self.apiClientTokenSuccess = function(data) {
+    self.token(data.auth.client_token);
   }
 
   self.apiListSuccess = function(path) {
@@ -250,6 +337,7 @@ var toJson = function(object) {
 
 var page = new Page();
 ko.applyBindings(page);
+
 
 if (page.endpoint() && page.token()) {
   page.reloadAll();
